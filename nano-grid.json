@@ -1,0 +1,106 @@
+{
+  "options":{
+    "rewards":{
+      "lineOverflow": -10,
+      "properLoad": 1.2,
+      "badLoadWeight": -0.5,
+      "properParentLoad": 0.9,
+      "badParentLoadWeight": -0.1
+    },
+    "alpha": 0.5,
+    "gamma": 0.7,
+    "epsilon": 0.2,
+    "temprature": 0.5
+  },
+  "nodes":{
+    "v0":{
+      "loads": ["l0"],
+			"resources": ["i0"],
+			"generators": ["g3"],
+			"children": ["v1"]
+    },
+    "v1":{
+      "loads": ["l1"],
+			"resources": ["i1"],
+			"generators": ["g0"],
+			"children": ["v2", "v3"]
+    },
+    "v2":{
+      "loads": ["l2"],
+			"resources": ["i2"],
+			"generators": ["g1"],
+			"children": []
+    },
+    "v3":{
+      "loads": ["l3"],
+			"resources": ["i3"],
+			"generators": ["g2"],
+			"children": []
+    }
+  },
+  "powerLines":{
+    "t0": {
+      "from": "v1",
+      "to": "v0",
+      "capacity": 40
+    },
+    "t1": {
+      "from": "v2",
+      "to": "v1",
+      "capacity": 20
+    },
+    "t2": {
+      "from": "v3",
+      "to": "v1",
+      "capacity": 40
+    }
+  },
+  "resources":{
+    "i0": {
+      "values": [13],
+      "distribution": 0,
+      "prob": 0.8
+    },
+    "i1": {
+      "values": [15],
+      "distribution": 1,
+      "prob": 0.9
+    },
+    "i2": {
+      "values": [16],
+      "distribution": 2,
+      "prob": 0.5
+    },
+    "i3": {
+      "values": [10],
+      "distribution": 3,
+      "prob": 0.7
+    }
+  },
+  "generators":{
+    "g0": 40,
+    "g1": 50,
+    "g2": 20,
+    "g3": 50
+  },
+  "loads":{
+    "l0": -18,
+    "l1": -20,
+    "l2": -25,
+    "l3": -15
+  },
+  "distributions": [
+    	[1],
+      [1],
+      [1],
+      [1],
+      [1],
+      [1],
+      [1],
+      [1],
+      [1],
+      [1],
+      [1],
+      [1]
+  ]
+}

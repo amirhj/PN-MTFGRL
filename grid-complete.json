@@ -1,0 +1,188 @@
+{
+  "options":{
+    "rewards":{
+      "lineOverflow": -10,
+      "properLoad": 1.2,
+      "badLoadWeight": -0.5,
+      "properParentLoad": 0.9,
+      "badParentLoadWeight": -0.1
+    },
+    "alpha": 0.5,
+    "gamma": 0.7,
+    "epsilon": 0.2,
+    "temprature": 0.5
+  },
+  "nodes":{
+    "v0":{
+		"loads": ["l0"],
+		"resources": ["i3"],
+		"generators": [],
+		"children": ["v1"]
+    },
+    "v1":{
+		"loads": ["l1"],
+		"resources": [],
+		"generators": [],
+		"children": ["v2", "v3"]
+    },
+    "v2":{
+		"loads": ["l2"],
+		"resources": [],
+		"generators": ["g0"],
+		"children": ["v4"]
+    },
+    "v3":{
+		"loads": ["l3"],
+		"resources": ["i2"],
+		"generators": ["g1"],
+		"children": ["v5"]
+    },
+    "v4":{
+		"loads": ["l4"],
+		"resources": [],
+		"generators": [],
+		"children": ["v6"]
+    },
+    "v5":{
+		"loads": ["l5"],
+		"resources": ["i5"],
+		"generators": ["g2"],
+		"children": ["v8", "v9"]
+    },
+    "v6":{
+		"loads": ["l6"],
+		"resources": ["i1"],
+		"generators": [],
+		"children": ["v7"]
+    },
+    "v7":{
+		"loads": ["l7"],
+		"resources": ["i4"],
+		"generators": ["g3"],
+		"children": []
+    },
+    "v8":{
+		"loads": ["l8"],
+		"resources": ["i0"],
+		"generators": ["g4"],
+		"children": []
+    },
+    "v9":{
+		"loads": ["l9"],
+		"resources": [],
+		"generators": ["g5"],
+		"children": []
+    }
+  },
+  "powerLines":{
+    "t0": {
+      "from": "v1",
+      "to": "v0",
+      "capacity": 40
+    },
+    "t1": {
+      "from": "v2",
+      "to": "v1",
+      "capacity": 20
+    },
+    "t2": {
+      "from": "v3",
+      "to": "v1",
+      "capacity": 40
+    },
+    "t3": {
+      "from": "v2",
+      "to": "v4",
+      "capacity": 40
+    },
+    "t4": {
+      "from": "v4",
+      "to": "v6",
+      "capacity": 40
+    },
+    "t5": {
+      "from": "v6",
+      "to": "v7",
+      "capacity": 40
+    },
+    "t6": {
+      "from": "v3",
+      "to": "v5",
+      "capacity": 40
+    },
+    "t7": {
+      "from": "v5",
+      "to": "v8",
+      "capacity": 40
+    },
+    "t8": {
+      "from": "v5",
+      "to": "v9",
+      "capacity": 40
+    }
+  },
+  "resources":{
+    "i0": {
+      "values": [13],
+      "distribution": 0,
+      "prob": 0.8
+    },
+    "i1": {
+      "values": [15],
+      "distribution": 1,
+      "prob": 0.9
+    },
+    "i2": {
+      "values": [16],
+      "distribution": 2,
+      "prob": 0.5
+    },
+    "i3": {
+      "values": [10],
+      "distribution": 4,
+      "prob": 0.6
+    },
+    "i4": {
+      "values": [10],
+      "distribution": 5,
+      "prob": 0.55
+    },
+    "i5": {
+      "values": [10],
+      "distribution": 6,
+      "prob": 0.7
+    }
+  },
+  "generators":{
+    "g0": 40,
+    "g1": 50,
+    "g2": 20,
+    "g3": 50,
+    "g4": 40,
+    "g5": 35
+  },
+  "loads":{
+    "l0": -18,
+    "l1": -20,
+    "l2": -25,
+    "l3": -15,
+	"l4": -20,
+	"l5": -10,
+	"l6": -30,
+	"l7": -20,
+	"l8": -40,
+	"l9": -10
+  },
+  "distributions": [
+	[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
+	[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
+	[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
+	[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
+	[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
+	[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
+	[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
+	[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
+	[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
+	[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0]
+  ]
+}
