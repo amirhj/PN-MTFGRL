@@ -8,6 +8,7 @@ class Scheduler:
 		self.fg = fg
 		self.opt = opt
 		self.log = {}
+		self.time = 0
 
 	def init(self):
 		for a in self.agents:
@@ -20,6 +21,7 @@ class Scheduler:
 
 		test = 1
 		for i in range(self.opt['episodes']+self.opt['tests']):
+			self.time += 1
 			if i < self.opt['episodes']:
 				print "Episode", i+1, ":",
 			else:

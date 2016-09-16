@@ -6,8 +6,7 @@ class FactorGraph:
 	def __init__(self, auto_lines=False):
 		self.vars = {}
 		self.funcs = {}
-		self.func_calc = None
-		self.graph = None
+		self.scheduler = None
 
 		self.grid = None
 		self.nodes = {}
@@ -19,21 +18,18 @@ class FactorGraph:
 		self.root = None
 		self.auto_lines = auto_lines
 
-	def load(self, graph, function_calculator):
-		self.func_calc = function_calculator
-		self.graph = graph
-
-		self.grid = json.loads(open(self.graph, 'r').read())
+	def load(self, graph):
+		self.grid = json.loads(open(graph, 'r').read())
 
 		for g in self.grid['generators']:
-			self.generators[g] = Generator(self.grid['generators'][g])
+			ge = self.grid['generators'][g]
+			self.generators[g] = Generator(g, ge['maxValue'], ge['CO'])
 
 		for r in self.grid['resources']:
-			self.resources[r] = Resource(self.grid['resources'][r]['values'], self.grid['resources'][r]['prob'],
-								self.grid['distributions'][self.grid['resources'][r]['distribution']])
+			re = self.grid['resources'][r]
+			self.resources[r] = Resource(r, re['values'], re['transitions'])
 
-		for l in self.grid['loads']:
-			self.loads[l] = self.grid['loads'][l]
+		self.loads = self.grid['loads']
 
 		children = set()
 		nodes = set()
@@ -72,16 +68,25 @@ class FactorGraph:
 			if 'children' in self.grid['nodes'][n]:
 				children = self.grid['nodes'][n]['children']
 
-			self.nodes[n] = RelayNode(n, parent, children, self.grid['nodes'][n]['generators'], \
-							self.grid['nodes'][n]['resources'], self.grid['nodes'][n]['loads'], self,
-							self.opt, self.debugLevel)
+			generators = []
+			if 'generators' in self.grid['nodes'][n]:
+				generators = self.grid['nodes'][n]['generators']
+
+			resources = []
+			if 'resources' in self.grid['nodes'][n]:
+				resources = self.grid['nodes'][n]['resources']
+
+			loads = []
+			if 'loads' in self.grid['nodes'][n]:
+				loads = {l: self.loads[l] for l in self.grid['nodes'][n]['loads']}
+
+			self.nodes[n] = RelayNode(n, parent, children, generators, resources, loads)
 
 		for pl in self.grid['powerLines']:
 			a = self.grid['powerLines'][pl]['from']
 			b = self.grid['powerLines'][pl]['to']
 
-			self.powerLines[(a, b)] = {'id': pl, 'value': 0, 'capacity': self.grid['powerLines'][pl]['capacity'],
-										'overflow': False}
+			self.powerLines[(a, b)] = {'id': pl, 'capacity': self.grid['powerLines'][pl]['capacity']}
 
 		# Factor graph elements
 		self.funcs = [n for n in self.nodes]
@@ -99,7 +104,7 @@ class FactorGraph:
 				self.vars[l]['size'] = self.powerLines[l]['capacity'] * 2 + 1
 				domain = range(self.powerLines[l]['capacity']) + [self.powerLines[l]['capacity']]
 				domain.reverse()
-				self.vars[l]['domain'] = [ d * -1 for d in domain[:-1]]
+				self.vars[l]['domain'] = [d * -1 for d in domain[:-1]]
 				self.vars[l]['domain'] += domain
 
 	def get_value(self, name):
@@ -111,9 +116,32 @@ class FactorGraph:
 			else:
 				value = self.vars[name]['domain'][self.vars[name]['value']]
 		elif name in self.funcs:
-			value = getattr(self.func_calc, name)()
+			sum_loads = sum(self.nodes[name].loads.values())
+			sum_generators = sum([self.vars[g]['value'] for g in self.nodes[name].generators])
+			sum_resources = sum([self.resources[r].getValue(self.scheduler.time) for r in self.nodes[name].resources])
+			lines = 0
+			if self.nodes[name].parent is not None:
+				lines += self.get_power_line_value(name, self.nodes[name].parent) * -1
+			for c in self.nodes[name].children:
+				lines += self.get_power_line_value(name, c)
+			if sum_loads + sum_generators + sum_resources + lines == 0:
+				value = sum([vars[g]['value'] * self.nodes[name].generators[g].CO * -1 for g in self.nodes[name].generators])
+			else:
+				value = float("-inf")
 		else:
 			raise Exception('Invalid function of variable.')
+
+		return value
+
+	def get_power_line_value(self, n1, n2):
+		line = (n1, n2)
+		rline = (n2, n1)
+		if line in self.vars:
+			value = self.vars[line]['value']
+		elif rline in self.vars:
+			value = self.vars[rline]['value']
+		else:
+			raise Exception('Invalid power line.')
 
 		return value
 
