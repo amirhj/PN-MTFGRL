@@ -53,7 +53,7 @@ class Scheduler:
 		# ***************************************
 		#       Changing optimal point
 		# ***************************************
-		print "\n\nChange...\n\n"
+		"""print "\n\nChange...\n\n"
 
 		self.fg.func_calc.change()
 		for a in self.agents:
@@ -92,7 +92,7 @@ class Scheduler:
 		# ***************************************
 		#     End of Changing optimal point
 		# ***************************************
-
+		"""
 		for a in self.agents:
 			agent = self.agents[a]
 			agent.stop()
@@ -117,7 +117,7 @@ class Scheduler:
 
 			totall_sum = 0
 			for f in self.fg.funcs.keys():
-				totall_sum += self.fg.get_value(f)
+				totall_sum += self.fg.get_function_value(f)
 
 			if max_sum is None or max_sum < totall_sum:
 				max_sum = totall_sum

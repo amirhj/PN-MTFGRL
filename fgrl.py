@@ -42,10 +42,27 @@ print "\nNumber of variables:", len(fg.vars)
 print "Number of functions:", len(fg.funcs)
 print "\nNumber of agents:", len(agents)
 
-
 sch = Scheduler(agents, fg, opt)
 fg.scheduler = sch
+
+"""
+print "\nvariables:"
+for v in fg.vars:
+	print v,":"
+	for f in fg.get_functions(v):
+		print "\t",f
+	for f in fg.get_neighbour_variables(v):
+		print "\t**",f
+print "\nfunctions:"
+for f in fg.funcs:
+	print f,":"
+	for v in fg.funcs[f]['variables']:
+		print "\t",v
+print fg.powerLines
+"""
 
 sch.init()
 sch.run()
 sch.terminate()
+#"""
+

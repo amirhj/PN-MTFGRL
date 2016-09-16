@@ -89,13 +89,23 @@ class FactorGraph:
 			self.powerLines[(a, b)] = {'id': pl, 'capacity': self.grid['powerLines'][pl]['capacity']}
 
 		# Factor graph elements
-		self.funcs = [n for n in self.nodes]
+		for n in self.nodes:
+			self.funcs[n] = {'variables': [g for g in self.nodes[n].generators]}
+			if self.nodes[n].parent is not None:
+				self.funcs[n]['variables'].append(self.nodes[n].parent)
+			for c in self.nodes[n].children:
+				self.funcs[n]['variables'].append(c)
 
 		for g in self.generators:
 			self.vars[g] = {}
 			self.vars[g]['domain'] = range(self.generators[g].maxValue) + [self.generators[g].maxValue]
 			self.vars[g]['value'] = 0
 			self.vars[g]['size'] = self.generators[g].maxValue + 1
+			for n in self.nodes:
+				for ge in self.nodes[n].generators:
+					if g == ge:
+						self.vars[g]['functions'] = [n]
+						break
 
 		if not self.auto_lines:
 			for l in self.powerLines:
@@ -106,15 +116,25 @@ class FactorGraph:
 				domain.reverse()
 				self.vars[l]['domain'] = [d * -1 for d in domain[:-1]]
 				self.vars[l]['domain'] += domain
+				self.vars[l]['functions'] = list(l)
 
-	def get_value(self, name):
+	def get_valuee(self, name):
 		if name in self.generators:
 			value = self.vars[name]['domain'][self.vars[name]['value']]
-		elif name in self.powerLines:
-			if self.auto_lines:
-				pass
+		elif isinstance(name, tuple):
+			if name in self.powerLines:
+				if self.auto_lines:
+					pass
+				else:
+					value = self.vars[name]['domain'][self.vars[name]['value']]
+			elif (name[1], name[0]) in self.powerLines:
+				r = (name[1], name[0])
+				if self.auto_lines:
+					pass
+				else:
+					value = self.vars[r]['domain'][self.vars[r]['value']]
 			else:
-				value = self.vars[name]['domain'][self.vars[name]['value']]
+				raise Exception('Invalid function of variable.')
 		elif name in self.funcs:
 			sum_loads = sum(self.nodes[name].loads.values())
 			sum_generators = sum([self.vars[g]['value'] for g in self.nodes[name].generators])
@@ -129,7 +149,7 @@ class FactorGraph:
 			else:
 				value = float("-inf")
 		else:
-			raise Exception('Invalid function of variable.')
+			raise Exception('Invalid function or variable.')
 
 		return value
 
@@ -156,3 +176,97 @@ class FactorGraph:
 	def reset(self):
 		for v in self.vars:
 			self.vars[v]['value'] = 0
+
+	def inc(self, var):
+		if self.vars[var]['value'] < self.vars[var]['size'] - 1:
+			self.vars[var]['value'] += 1
+
+	def dec(self, var):
+		if self.vars[var]['value'] > 0:
+			self.vars[var]['value'] -= 1
+
+	def get_size(self, name):
+		if name in self.generators:
+			value = self.vars[name]['size']
+		elif isinstance(name, tuple):
+			if name in self.powerLines:
+				if self.auto_lines:
+					pass
+				else:
+					value = self.vars[name]['size']
+			elif (name[1], name[0]) in self.powerLines:
+				r = (name[1], name[0])
+				if self.auto_lines:
+					pass
+				else:
+					value = self.vars[r]['size']
+			else:
+				raise Exception('Invalid variable: '+str(name))
+		else:
+			raise Exception('Invalid variable: '+str(name))
+
+		return value
+
+	def get_functions(self, name):
+		if name in self.generators:
+			value = self.vars[name]['functions']
+		elif isinstance(name, tuple):
+			if name in self.powerLines:
+				if self.auto_lines:
+					pass
+				else:
+					value = self.vars[name]['functions']
+			elif (name[1], name[0]) in self.powerLines:
+				r = (name[1], name[0])
+				if self.auto_lines:
+					pass
+				else:
+					value = self.vars[r]['functions']
+			else:
+				raise Exception('Invalid variable: **'+str(name)+'**')
+		else:
+			raise Exception('Invalid variable: |'+str(name)+'|')
+
+		return value
+
+	def get_variable_value(self, name):
+		if name in self.generators:
+			value = self.vars[name]['domain'][self.vars[name]['value']]
+		elif isinstance(name, tuple):
+			if name in self.powerLines:
+				if self.auto_lines:
+					pass
+				else:
+					value = self.vars[name]['domain'][self.vars[name]['value']]
+			elif (name[1], name[0]) in self.powerLines:
+				r = (name[1], name[0])
+				if self.auto_lines:
+					pass
+				else:
+					value = self.vars[r]['domain'][self.vars[r]['value']]
+			else:
+				raise Exception('Invalid variable: '+str(name))
+		else:
+			raise Exception('Invalid variable: '+str(name))
+
+		return value
+
+	def get_function_value(self, name):
+		if name in self.funcs:
+			sum_loads = sum(self.nodes[name].loads.values())
+			sum_generators = sum([self.get_variable_value(g) for g in self.nodes[name].generators])
+			sum_resources = sum([self.resources[r].getValue(self.scheduler.time) for r in self.nodes[name].resources])
+			lines = 0
+			if self.nodes[name].parent is not None:
+				lines += self.get_power_line_value(name, self.nodes[name].parent) * -1
+			for c in self.nodes[name].children:
+				lines += self.get_power_line_value(name, c)
+			if sum_loads + sum_generators + sum_resources + lines == 0:
+				value = sum(
+					[self.get_variable_value(g) * self.generators[g].CO * -1 for g in self.nodes[name].generators])
+			else:
+				value = float("-inf")
+		else:
+			raise Exception('Invalid function: '+str(name))
+
+		return value
