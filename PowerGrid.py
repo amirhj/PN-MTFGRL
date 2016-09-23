@@ -2,13 +2,16 @@ import util
 
 
 class RelayNode:
-	def __init__(self, id, parent, children, generators, resources, loads):
+	def __init__(self, id, parent, children, generators, resources, loads, powerLines, parentPL, childrenPL):
 		self.id = id
 		self.parent = parent
 		self.children = children
 		self.generators = generators
 		self.loads = loads
 		self.resources = resources
+		self.powerLines = powerLines
+		self.parentPL = parentPL
+		self.childrenPL = childrenPL
 
 
 class Generator:

@@ -9,25 +9,25 @@
 	"v0":{
 	  "loads": ["l0"],
       "resources": ["i0"],
-      "generators": ["g3"],
+      "generators": ["g0"],
       "children": ["v1"]
 	},
 	"v1":{
 	  "loads": ["l1"],
       "resources": ["i1"],
-      "generators": ["g0"],
+      "generators": ["g1"],
       "children": ["v2", "v3"]
 	},
 	"v2":{
 	  "loads": ["l2"],
       "resources": ["i2"],
-      "generators": ["g1"],
+      "generators": ["g2"],
       "children": []
 	},
 	"v3":{
 	  "loads": ["l3"],
       "resources": ["i3"],
-      "generators": ["g2"],
+      "generators": ["g3"],
       "children": []
 	}
   },

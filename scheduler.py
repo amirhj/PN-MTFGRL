@@ -1,5 +1,6 @@
 import util, json, os
 from datetime import datetime
+import types
 
 
 class Scheduler:
@@ -105,8 +106,9 @@ class Scheduler:
 		variables = self.fg.vars.keys()
 
 		for v in self.fg.vars:
-			result['result'][v] = self.fg.vars[v]['value']
+			result['result'][str(v)] = self.fg.vars[v]['value']
 
+		"""
 		max_sum = None
 		max_vars = None
 		while indices[variables[0]] < len(self.fg.vars[variables[0]]['domain']):
@@ -133,6 +135,7 @@ class Scheduler:
 						break
 
 		result['optimal'] = max_vars
+		"""
 
 		folder = 'results/'+datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 		os.mkdir(folder)
@@ -144,7 +147,10 @@ class Scheduler:
 
 		for a in self.log:
 			i = 1
-			l = open(folder+'/'+a+'.txt', 'w')
+			name = a
+			if isinstance(a, tuple):
+				name = '-'.join(list(a))
+			l = open(folder+'/'+name+'.txt', 'w')
 			for r in self.log[a]:
 				l.write("%d %d\n" % (i, r))
 				i += 1
@@ -153,7 +159,10 @@ class Scheduler:
 		for a in self.agents:
 			i = 1
 			agent = self.agents[a]
-			q = open(folder + '/qvalues/' + a + '.txt', 'w')
+			name = a
+			if isinstance(a, tuple):
+				name = '-'.join(list(a))
+			q = open(folder + '/qvalues/' + name + '.txt', 'w')
 			for r in agent.qlog:
 				q.write("%d %f\n" % (i, r))
 				i += 1

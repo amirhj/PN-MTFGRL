@@ -33,6 +33,7 @@ agents = {}
 for v in fg.vars:
 	agents[v] = Agent(v, fg, opt, agents)
 
+
 print "Number of relay nodes:", len(fg.nodes)
 print "Number of power lines:", len(fg.powerLines)
 print "Number of generators:", len(fg.generators)

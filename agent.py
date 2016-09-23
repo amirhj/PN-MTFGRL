@@ -12,7 +12,7 @@ class Agent(threading.Thread):
 		self.opt = opt
 		self.alpha = opt['alpha']
 		self.epsilon = opt['epsilon']
-		self.node_name = name
+		self.name = name
 		self.agents = agnets
 		self.clock = 1
 		self.log = []
@@ -25,17 +25,16 @@ class Agent(threading.Thread):
 
 	def get_actions(self):
 		actions = ['dec', 'hold', 'inc']
-		value = self.get_value()
-		if value == 0:
+		if self.fg.vars[self.name]['value'] == 0:
 			del actions[0]
-		if value == self.fg.get_size(self.node_name) - 1:
+		if self.fg.vars[self.name]['value'] == self.fg.vars[self.name]['size'] - 1:
 			del actions[2]
 		return actions
 
 	def get_state(self):
 		state = []
-		for f in self.fg.get_functions(self.node_name):
-			state.append(self.fg.get_function_value(f))
+		for f in self.fg.vars[self.name]['functions']:
+			state.append(self.fg.get_value(f))
 		return tuple(state)
 
 	def policy(self, state):
@@ -64,20 +63,18 @@ class Agent(threading.Thread):
 			adiff = sum(next_state) - sum(state)
 			actions = self.get_actions()
 
-			value = self.get_value()
-
 			if action == 'inc':
-				if value < self.fg.get_size(self.node_name) - 1:
-					self.fg.dec(self.node_name)
+				if self.fg.vars[self.name]['value'] < self.fg.vars[self.name]['size'] - 1:
+					self.fg.vars[self.name]['value'] -= 1
 					actions = self.get_actions()
-					self.fg.inc(self.node_name)
+					self.fg.vars[self.name]['value'] += 1
 					if 'inc' in actions:
 						del actions[actions.index('inc')]
 			elif action == 'dec':
-				if value > 0:
-					self.fg.inc(self.node_name)
+				if self.fg.vars[self.name]['value'] > 0:
+					self.fg.vars[self.name]['value'] += 1
 					actions = self.get_actions()
-					self.fg.dec(self.node_name)
+					self.fg.vars[self.name]['value'] -= 1
 					if 'dec' in actions:
 						del actions[actions.index('dec')]
 			else:
@@ -97,26 +94,27 @@ class Agent(threading.Thread):
 
 	def commit(self, action):
 		if action == 'inc':
-			self.fg.inc(self.node_name)
+			if self.fg.vars[self.name]['value'] < self.fg.vars[self.name]['size']-1:
+				self.fg.vars[self.name]['value'] += 1
 		elif action == 'dec':
-			self.fg.dec(self.node_name)
+			if self.fg.vars[self.name]['value'] > 0:
+				self.fg.vars[self.name]['value'] -= 1
 
 		self.last_action = action
 
 	def simulate(self, action):
 		state = self.get_state()
-		value = self.get_value()
 		if action == 'inc':
-			if value < self.fg.get_size(self.node_name) - 1:
-				self.fg.inc(self.node_name)
+			if self.fg.vars[self.name]['value'] < self.fg.vars[self.name]['size'] - 1:
+				self.fg.vars[self.name]['value'] += 1
 				state = self.get_state()
-				self.fg.dec(self.node_name)
+				self.fg.vars[self.name]['value'] -= 1
 
 		elif action == 'dec':
-			if value > 0:
-				self.fg.dec(self.node_name)
+			if self.fg.vars[self.name]['value'] > 0:
+				self.fg.vars[self.name]['value'] -= 1
 				state = self.get_state()
-				self.fg.inc(self.node_name)
+				self.fg.vars[self.name]['value'] += 1
 		return state
 
 	def update(self, state, action_profile, next_state, reward):
@@ -128,20 +126,19 @@ class Agent(threading.Thread):
 		actions = self.get_actions()
 		state = self.get_state()
 		terminate = True
-		value = self.get_value()
 		if 'dec' in actions:
-			if value > 0:
-				self.fg.dec(self.node_name)
+			if self.fg.vars[self.name]['value'] > 0:
+				self.fg.vars[self.name]['value'] -= 1
 				next_state = self.get_state()
-				self.fg.inc(self.node_name)
+				self.fg.vars[self.name]['value'] += 1
 				diff = sum(next_state) - sum(state)
 				if diff > 0:
 					terminate = False
 		if 'inc' in actions:
-			if value < self.fg.get_size(self.node_name) - 1:
-				self.fg.inc(self.node_name)
+			if self.fg.vars[self.name]['value'] < self.fg.vars[self.name]['size'] - 1:
+				self.fg.vars[self.name]['value'] += 1
 				next_state = self.get_state()
-				self.fg.dec(self.node_name)
+				self.fg.vars[self.name]['value'] -= 1
 				diff = sum(next_state) - sum(state)
 				if diff > 0:
 					terminate = False
@@ -149,16 +146,13 @@ class Agent(threading.Thread):
 
 	def get_actions_profile(self, action):
 		actions = [action]
-		for a in self.fg.get_neighbour_variables(self.node_name):
+		for a in self.fg.get_neighbour_variables(self.name):
 			actions.append(self.agents[a].last_action)
 		return tuple(actions)
 
 	def run(self):
 		while not self.finished:
-			# print 'just hanging here', self.episode_finished, self.clock, self.opt['timeout']
 			while (not self.episode_finished) and (self.clock < self.opt['timeout']):
-				# if self.node_name == 'x1':
-				# 	print 'in x1'
 				state = self.get_state()
 				action = self.policy(state)
 				self.commit(action)
@@ -167,7 +161,7 @@ class Agent(threading.Thread):
 				reward = self.reward(state, action_profile, next_state)
 				self.update(state, action_profile, next_state, reward)
 
-				self.log.append(self.get_value())
+				self.log.append(self.fg.vars[self.name]['value'])
 				self.qlog.append(sum(self.qvalues.values()))
 				self.clock += 1
 
@@ -175,7 +169,7 @@ class Agent(threading.Thread):
 		agents = []
 		action_indices = util.Counter()
 		agents_actions = {}
-		for a in self.fg.get_neighbour_variables(self.node_name):
+		for a in self.fg.get_neighbour_variables(self.name):
 			agents_actions[a] = self.agents[a].get_actions()
 			agents.append(a)
 
@@ -219,5 +213,3 @@ class Agent(threading.Thread):
 		self.alpha = self.opt['alpha']
 		self.epsilon = self.opt['epsilon']
 
-	def get_value(self):
-		return self.fg.get_variable_value(self.node_name)
