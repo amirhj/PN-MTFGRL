@@ -1,4 +1,4 @@
-import json
+import json, threading
 from PowerGrid import *
 
 
@@ -108,6 +108,7 @@ class FactorGraph:
 			self.vars[g]['domain'] = range(self.generators[g].maxValue) + [self.generators[g].maxValue]
 			self.vars[g]['value'] = 0
 			self.vars[g]['size'] = self.generators[g].maxValue + 1
+			self.vars[g]['sem'] = threading.Lock()
 			for n in self.nodes:
 				for ge in self.nodes[n].generators:
 					if g == ge:
@@ -124,9 +125,11 @@ class FactorGraph:
 				self.vars[l]['domain'] = [d * -1 for d in domain[:-1]]
 				self.vars[l]['domain'] += domain
 				self.vars[l]['functions'] = [self.powerLines[l]['from'], self.powerLines[l]['to']]
+				self.vars[l]['sem'] = threading.Lock()
 
 	def get_value(self, name):
 		if name in self.generators:
+
 			value = self.vars[name]['domain'][self.vars[name]['value']]
 		elif name in self.grid['powerLines']:
 			if self.auto_lines:
@@ -142,10 +145,12 @@ class FactorGraph:
 				lines += self.get_value(self.nodes[name].parentPL) * -1
 			for c in self.nodes[name].childrenPL:
 				lines += self.get_value(c)
-			if sum_loads + sum_generators + sum_resources + lines == 0:
-				value = sum([self.get_value(g) * self.generators[g].CO * -1 for g in self.nodes[name].generators])
+
+			load_sum = sum_loads + sum_generators + sum_resources + lines
+			if load_sum == 0:
+				value = sum([self.get_value(g) * self.generators[g].CO for g in self.nodes[name].generators]) * -1
 			else:
-				value = float("-inf")
+				value = (abs(load_sum) + sum([self.vars[g]['domain'][self.vars[g]['size'] - 1] * self.generators[g].CO for g in self.nodes[name].generators])) * -1
 		else:
 			raise Exception('Invalid function or variable.')
 

@@ -46,6 +46,7 @@ print "\nNumber of agents:", len(agents)
 sch = Scheduler(agents, fg, opt)
 fg.scheduler = sch
 
+
 """
 print "\nvariables:"
 for v in fg.vars:

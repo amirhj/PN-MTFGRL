@@ -1,6 +1,5 @@
-import util, json, os
+import util, json, os, sys
 from datetime import datetime
-import types
 
 
 class Scheduler:
@@ -100,6 +99,8 @@ class Scheduler:
 			self.log[a] = agent.log
 
 	def terminate(self):
+		sys.stdout.flush()
+		sys.stderr.flush()
 		result = {'options': self.opt, 'result': {}}
 
 		indices = util.Counter()
@@ -108,7 +109,8 @@ class Scheduler:
 		for v in self.fg.vars:
 			result['result'][str(v)] = self.fg.vars[v]['value']
 
-		"""
+		#"""
+		print 'Getting solution by brute force...'
 		max_sum = None
 		max_vars = None
 		while indices[variables[0]] < len(self.fg.vars[variables[0]]['domain']):
@@ -119,7 +121,7 @@ class Scheduler:
 
 			totall_sum = 0
 			for f in self.fg.funcs.keys():
-				totall_sum += self.fg.get_function_value(f)
+				totall_sum += self.fg.get_value(f)
 
 			if max_sum is None or max_sum < totall_sum:
 				max_sum = totall_sum
@@ -135,14 +137,20 @@ class Scheduler:
 						break
 
 		result['optimal'] = max_vars
-		"""
+		#"""
 
+		print 'Writing results...'
 		folder = 'results/'+datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 		os.mkdir(folder)
 		os.mkdir(folder+'/qvalues')
 
 		res = open(folder+'/result.txt', 'w')
 		res.write(json.dumps(result, indent=4))
+		res.close()
+
+		res = open(folder+'/loog.txt', 'w')
+		for line in self.agents['g1'].loog:
+			res.write(line+'\n')
 		res.close()
 
 		for a in self.log:

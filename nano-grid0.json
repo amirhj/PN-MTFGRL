@@ -1,0 +1,111 @@
+{
+  "nodes":{
+	"v0":{
+	  "loads": ["l0"],
+      "resources": ["i0"],
+      "generators": ["g0"],
+      "children": ["v1"]
+	},
+	"v1":{
+	  "loads": ["l1"],
+      "resources": ["i1"],
+      "generators": ["g1"],
+      "children": ["v2", "v3"]
+	},
+	"v2":{
+	  "loads": ["l2"],
+      "resources": ["i2"],
+      "generators": ["g2"],
+      "children": []
+	},
+	"v3":{
+	  "loads": ["l3"],
+      "resources": ["i3"],
+      "generators": ["g3"],
+      "children": []
+	}
+  },
+  "powerLines":{
+	"t0": {
+	  "from": "v1",
+	  "to": "v0",
+	  "capacity": 10
+	},
+	"t1": {
+	  "from": "v2",
+	  "to": "v1",
+	  "capacity": 10
+	},
+	"t2": {
+	  "from": "v3",
+	  "to": "v1",
+	  "capacity": 10
+	}
+  },
+  "resources":{
+	"i0": {
+	  "values": [
+        [],
+        []
+      ],
+	  "transitions": [
+        [],
+        []
+      ]
+	},
+	"i1": {
+	  "values": [
+        [],
+        []
+      ],
+	  "transitions": [
+        [],
+        []
+      ]
+	},
+	"i2": {
+	  "values": [
+        [],
+        []
+      ],
+	  "transitions": [
+        [],
+        []
+      ]
+	},
+	"i3": {
+	  "values": [
+        [],
+        []
+      ],
+	  "transitions": [
+        [],
+        []
+      ]
+	}
+  },
+  "generators":{
+	"g0": {
+      "maxValue": 10,
+      "CO": 0.2
+    },
+	"g1": {
+      "maxValue": 8,
+      "CO": 0.2
+    },
+	"g2": {
+      "maxValue": 7,
+      "CO": 0.1
+    },
+	"g3": {
+      "maxValue": 5,
+      "CO": 0.4
+    }
+  },
+  "loads":{
+	"l0": -5,
+	"l1": -3,
+	"l2": -6,
+	"l3": -9
+  }
+}
