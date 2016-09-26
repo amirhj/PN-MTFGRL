@@ -9,6 +9,7 @@ class Scheduler:
 		self.opt = opt
 		self.log = {}
 		self.time = 0
+		self.clock_log = []
 
 	def init(self):
 		for a in self.agents:
@@ -109,6 +110,48 @@ class Scheduler:
 		for v in self.fg.vars:
 			result['result'][str(v)] = self.fg.vars[v]['value']
 
+		print 'Writing results...'
+		folder = 'results/'+datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+		os.mkdir(folder)
+		os.mkdir(folder+'/qvalues')
+
+		res = open(folder+'/result.txt', 'w')
+		res.write(json.dumps(result, indent=4))
+		res.close()
+
+		res = open(folder+'/loog.txt', 'w')
+		for line in self.agents['g1'].loog:
+			res.write(line+'\n')
+		res.close()
+
+		res = open(folder+'/clock_log.txt', 'w')
+		for i in range(len(self.clock_log)):
+			res.write('%d %d\n' % (i+1, self.clock_log[i]))
+		res.close()
+
+		for a in self.log:
+			i = 1
+			name = a
+			if isinstance(a, tuple):
+				name = '-'.join(list(a))
+			l = open(folder+'/'+name+'.txt', 'w')
+			for r in self.log[a]:
+				l.write("%d %d\n" % (i, r))
+				i += 1
+			l.close()
+
+		for a in self.agents:
+			i = 1
+			agent = self.agents[a]
+			name = a
+			if isinstance(a, tuple):
+				name = '-'.join(list(a))
+			q = open(folder + '/qvalues/' + name + '.txt', 'w')
+			for r in agent.qlog:
+				q.write("%d %f\n" % (i, r))
+				i += 1
+			q.close()
+
 		#"""
 		print 'Getting solution by brute force...'
 		max_sum = None
@@ -138,51 +181,26 @@ class Scheduler:
 
 		result['optimal'] = max_vars
 		#"""
-
-		print 'Writing results...'
-		folder = 'results/'+datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-		os.mkdir(folder)
-		os.mkdir(folder+'/qvalues')
-
+		
 		res = open(folder+'/result.txt', 'w')
 		res.write(json.dumps(result, indent=4))
 		res.close()
 
-		res = open(folder+'/loog.txt', 'w')
-		for line in self.agents['g1'].loog:
-			res.write(line+'\n')
-		res.close()
-
-		for a in self.log:
-			i = 1
-			name = a
-			if isinstance(a, tuple):
-				name = '-'.join(list(a))
-			l = open(folder+'/'+name+'.txt', 'w')
-			for r in self.log[a]:
-				l.write("%d %d\n" % (i, r))
-				i += 1
-			l.close()
-
-		for a in self.agents:
-			i = 1
-			agent = self.agents[a]
-			name = a
-			if isinstance(a, tuple):
-				name = '-'.join(list(a))
-			q = open(folder + '/qvalues/' + name + '.txt', 'w')
-			for r in agent.qlog:
-				q.write("%d %f\n" % (i, r))
-				i += 1
-			q.close()
-
 	def is_terminated(self):
 		terminated = True
+		max_clock = 0
 		for a in self.agents:
 			agent = self.agents[a]
 			if not agent.is_terminated():
 				terminated = False
 				break
+			else:
+				if agent.clock > max_clock:
+					max_clock = agent.clock
+
+		if terminated:
+			self.clock_log.append(max_clock)
+
 		return terminated
 
 	def is_timeout(self):
@@ -193,4 +211,7 @@ class Scheduler:
 				if agent.clock >= self.opt['timeout']:
 					timeout = True
 					break
+		if timeout:
+			self.clock_log.append(self.opt['timeout'])
+
 		return timeout
