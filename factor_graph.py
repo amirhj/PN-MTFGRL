@@ -1,4 +1,4 @@
-import json, threading
+import json, threading, random
 from PowerGrid import *
 
 
@@ -166,5 +166,5 @@ class FactorGraph:
 
 	def reset(self):
 		for v in self.vars:
-			self.vars[v]['value'] = 0
+			self.vars[v]['value'] = random.choice(range(self.vars[v]['size']))
 			
