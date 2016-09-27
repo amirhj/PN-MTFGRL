@@ -105,7 +105,7 @@ class Scheduler:
 		"""
 		for a in self.agents:
 			agent = self.agents[a]
-			agent.stop()
+			agent.stoop()
 			self.log[a] = agent.log
 
 	def terminate(self):
