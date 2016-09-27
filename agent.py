@@ -22,6 +22,9 @@ class Agent(threading.Thread):
 		self.finished = False
 
 		self.vars = None
+		self.varlog = None
+		self.varlock = threading.Lock()
+		self.filelock = threading.Lock()
 
 		self.qvalues = util.Counter()
 		self.last_action = 'hold'
@@ -45,6 +48,7 @@ class Agent(threading.Thread):
 			try:
 				state.append(self.fg.get_virtual_value(f, self.vars))
 			except Exception as e:
+				print '\033[93m', self.vars, '\033[0m'
 				print '\033[92mcalling by ',f, 'in ', self.name,'\033[0m'
 				raise e
 		return tuple(state)
@@ -167,16 +171,18 @@ class Agent(threading.Thread):
 
 				state = self.get_state()
 				action = self.policy(state)
+				v1 = self.vars[self.name]['value']
 				self.commit(action)
+				v2 = self.vars[self.name]['value']
 				next_state = self.get_state()
 				action_profile = self.get_actions_profile(action)
 				reward = self.reward(state, action_profile, next_state)
 				self.update(state, action_profile, next_state, reward)
 
 				self.insert_log('in clock: '+str(self.clock))
-				self.insert_log('in state: '+str(state))
+				self.insert_log('in state: '+str(state)+' by '+str(v1))
 				self.insert_log('takin action: '+str(action))
-				self.insert_log('going to state: '+str(next_state))
+				self.insert_log('going to state: '+str(next_state)+' by '+str(v1))
 				self.insert_log('with action profile: '+str(action_profile))
 				self.insert_log('getting reward: '+str(reward))
 
@@ -220,15 +226,21 @@ class Agent(threading.Thread):
 	def reset(self):
 		self.clock = 1
 		self.clone_vars()
+		
+		#self.filelock.acquire()
+		#if self.varlog is not None:
+		#	self.varlog.close()
+		#self.varlog = open('log/%s.txt' % self.name, 'w')
+		#self.filelock.release()
 
-	def play(self):
+	def ploy(self):
 		self.episode_finished = False
 
-	def pause(self):
+	def pauose(self):
 		self.episode_finished = True
 		#print self.name, 'paused'
 
-	def stop(self):
+	def stoop(self):
 		self.episode_finished = True
 		self.finished = True
 
@@ -245,10 +257,24 @@ class Agent(threading.Thread):
 			self.loog.append(m)
 
 	def inc(self):
-		if self.vars[self.name]['value'] < self.vars[self.name]['value'] -1:
+		self.varlock.acquire()
+		v = self.vars[self.name]['value']
+		if self.vars[self.name]['value'] < self.vars[self.name]['size'] -1:
 			self.vars[self.name]['value'] += 1
+			if self.vars[self.name]['value'] == self.vars[self.name]['size']:
+				self.vars[self.name]['value'] = self.vars[self.name]['size'] -1
+			#with self.filelock:
+			#	self.varlog.write('inc %s from %d to %d\n' % (self.name, v, self.vars[self.name]['value']))
+		self.varlock.release()
 
 	def dec(self):
+		self.varlock.acquire()
+		v = self.vars[self.name]['value']
 		if self.vars[self.name]['value'] > 0:
 			self.vars[self.name]['value'] -= 1
+			if self.vars[self.name]['value'] == -1:
+				self.vars[self.name]['value'] = 0
+			#with self.filelock:
+			#	self.varlog.write('dec %s from %d to %d\n' % (self.name, v, self.vars[self.name]['value']))
+		self.varlock.release()
 

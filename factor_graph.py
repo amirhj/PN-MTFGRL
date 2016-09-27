@@ -3,7 +3,7 @@ from PowerGrid import *
 
 
 class FactorGraph:
-	def __init__(self, auto_lines=False):
+	def __init__(self, opt):
 		self.vars = {}
 		self.funcs = {}
 		self.scheduler = None
@@ -16,8 +16,11 @@ class FactorGraph:
 		self.resources = {}
 		self.leaves = []
 		self.root = None
-		self.auto_lines = auto_lines
+		self.opt = opt
+		self.auto_lines = self.opt['auto_lines']
 		self.vars_lock = threading.Lock()
+
+		self.log = None
 
 	def load(self, graph):
 		self.grid = json.loads(open(graph, 'r').read())
@@ -123,6 +126,7 @@ class FactorGraph:
 				domain = range(self.powerLines[l]['capacity']) + [self.powerLines[l]['capacity']]
 				domain.reverse()
 				self.vars[l]['domain'] = [d * -1 for d in domain[:-1]]
+				domain.reverse()
 				self.vars[l]['domain'] += domain
 				self.vars[l]['functions'] = [self.powerLines[l]['from'], self.powerLines[l]['to']]
 
@@ -214,15 +218,27 @@ class FactorGraph:
 
 	def reset(self):
 		res = {}
-		for v in self.vars:
-			self.vars[v]['value'] = random.choice(range(self.vars[v]['size']))
-			res[v] = (self.vars[v]['value'], self.vars[v]['size'])
+		if self.opt['random_init']:
+			for v in self.vars:
+				self.vars[v]['value'] = random.choice(range(self.vars[v]['size']))
+				res[v] = (self.vars[v]['value'], self.vars[v]['size'])
+		else:
+			for v in self.vars:
+				self.vars[v]['value'] = 0
+		#if self.log is not None:
+		#	self.log.close()
+		#self.log = open('fg-log.txt', 'w')
+
 		#print res
 	
 	def inc(self, name):
-		if self.vars[name]['value'] < self.vars[name]['size']-1:
+		#v = self.vars[name]['value']
+		if self.vars[name]['value'] < (self.vars[name]['size'] - 1):
 			self.vars[name]['value'] += 1
+			#self.log.write('inc %s from %d to %d\n' % (name, v, self.vars[name]['value']))
 
 	def dec(self, name):
+		#v = self.vars[name]['value']
 		if self.vars[name]['value'] > 0:
 			self.vars[name]['value'] -= 1
+			#self.log.write('dec %s from %d to %d\n' % (name, v, self.vars[name]['value']))

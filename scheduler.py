@@ -42,7 +42,7 @@ class Scheduler:
 
 			for a in self.agents:
 				agent = self.agents[a]
-				agent.play()
+				agent.ploy()
 
 			termination = ''
 			while True:
@@ -56,7 +56,7 @@ class Scheduler:
 
 			for a in self.agents:
 				agent = self.agents[a]
-				agent.pause()
+				agent.pauose()
 
 			print termination
 

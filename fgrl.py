@@ -14,7 +14,8 @@ opt_pattern = {'-e': {'name': 'episodes', 'type': 'int', 'default': 200},
                '-T': {'name': 'timeout', 'type': 'int', 'default': 200},
                '-t': {'name': 'tests', 'type': 'int', 'default': 20},
                '-a': {'name': 'auto_lines', 'type': 'bool', 'default': False},
-               '-d': {'name': 'debug_level', 'type': 'int', 'default': 1}
+               '-d': {'name': 'debug_level', 'type': 'int', 'default': 1},
+               '-r': {'name': 'random_init', 'type': 'bool', 'default': False}
                }
 arg = ArgParser(sys.argv[2:], opt_pattern)
 opt = arg.read()
@@ -23,7 +24,7 @@ for o in opt:
 	print "\t", o, opt[o]
 print
 
-fg = FactorGraph(opt['auto_lines'])
+fg = FactorGraph(opt)
 
 fg.load(sys.argv[1])
 
