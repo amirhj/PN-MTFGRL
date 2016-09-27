@@ -1,5 +1,5 @@
 import random
-import util
+import util, sys
 import threading
 
 
@@ -21,22 +21,32 @@ class Agent(threading.Thread):
 		self.episode_finished = True
 		self.finished = False
 
+		self.vars = None
+
 		self.qvalues = util.Counter()
 		self.last_action = 'hold'
 		self.infinity = float('-inf')
 
+	def clone_vars(self):
+		self.vars = self.fg.clone_vars()
+		#print '\033[92m agent',self.name, ' cloned\033[0m'
+
 	def get_actions(self):
 		actions = ['dec', 'hold', 'inc']
-		if self.fg.vars[self.name]['value'] == 0:
+		if self.vars[self.name]['value'] == 0:
 			del actions[0]
-		if self.fg.vars[self.name]['value'] == self.fg.vars[self.name]['size'] - 1:
+		if self.vars[self.name]['value'] == self.vars[self.name]['size'] - 1:
 			del actions[2]
 		return actions
 
 	def get_state(self):
 		state = []
-		for f in self.fg.vars[self.name]['functions']:
-			state.append(self.fg.get_value(f))
+		for f in self.vars[self.name]['functions']:
+			try:
+				state.append(self.fg.get_virtual_value(f, self.vars))
+			except Exception as e:
+				print '\033[92mcalling by ',f, 'in ', self.name,'\033[0m'
+				raise e
 		return tuple(state)
 
 	def policy(self, state):
@@ -64,34 +74,23 @@ class Agent(threading.Thread):
 			action = action_profile[0]
 			sum_state = sum(state)
 			adiff = sum(next_state) - sum_state
-			actions = self.get_actions()
+
+			states = {}
 
 			if action == 'inc':
-				self.fg.vars[self.name]['sem'].acquire()
-				if self.fg.vars[self.name]['value'] < self.fg.vars[self.name]['size'] - 1:
-					self.fg.vars[self.name]['value'] -= 1
-					actions = self.get_actions()
-					self.fg.vars[self.name]['value'] += 1
-					if 'inc' in actions:
-						del actions[actions.index('inc')]
-				self.fg.vars[self.name]['sem'].release()
+				self.dec()
+				states = self.simulate(action)
+				self.inc()
 			elif action == 'dec':
-				self.fg.vars[self.name]['sem'].acquire()
-				if self.fg.vars[self.name]['value'] > 0:
-					self.fg.vars[self.name]['value'] += 1
-					actions = self.get_actions()
-					self.fg.vars[self.name]['value'] -= 1
-					if 'dec' in actions:
-						del actions[actions.index('dec')]
-				self.fg.vars[self.name]['sem'].release()
+				self.inc()				
+				states = self.simulate(action)
+				self.dec()
 			else:
-				actions = self.get_actions()
-				if 'hold' in actions:
-					del actions[actions.index('hold')]
+				states = self.simulate(action)
 
 			r = 0.1
-			for a in actions:
-				s = self.simulate(a)
+			for a in states:
+				s = states[a]
 				diff = sum(s) - sum_state
 				if diff > adiff:
 					r = -0.1
@@ -100,35 +99,22 @@ class Agent(threading.Thread):
 		return r
 
 	def commit(self, action):
-		self.fg.vars[self.name]['sem'].acquire()
 		if action == 'inc':
-			if self.fg.vars[self.name]['value'] < self.fg.vars[self.name]['size']-1:
-				self.fg.vars[self.name]['value'] += 1
+			self.fg.inc(self.name)
+			self.inc()
 		elif action == 'dec':
-			if self.fg.vars[self.name]['value'] > 0:
-				self.fg.vars[self.name]['value'] -= 1
-		self.fg.vars[self.name]['sem'].release()
+			self.fg.dec(self.name)
+			self.dec()
 
 		self.last_action = action
 
 	def simulate(self, action):
-		state = self.get_state()
-		if action == 'inc':
-			self.fg.vars[self.name]['sem'].acquire()
-			if self.fg.vars[self.name]['value'] < self.fg.vars[self.name]['size'] - 1:
-				self.fg.vars[self.name]['value'] += 1
-				state = self.get_state()
-				self.fg.vars[self.name]['value'] -= 1
-			self.fg.vars[self.name]['sem'].release()
-
-		elif action == 'dec':
-			self.fg.vars[self.name]['sem'].acquire()
-			if self.fg.vars[self.name]['value'] > 0:
-				self.fg.vars[self.name]['value'] -= 1
-				state = self.get_state()
-				self.fg.vars[self.name]['value'] += 1
-			self.fg.vars[self.name]['sem'].release()
-		return state
+		actions = self.get_actions()
+		states = {}
+		for a in actions:
+			if a != action:
+				states[a] = self.get_state()
+		return states
 
 	def update(self, state, action_profile, next_state, reward):
 		qstate = (state, ) + action_profile
@@ -147,27 +133,23 @@ class Agent(threading.Thread):
 			self.insert_log('not terminated by -inf')
 		else:
 			if 'dec' in actions:
-				self.fg.vars[self.name]['sem'].acquire()
-				if self.fg.vars[self.name]['value'] > 0:
-					self.fg.vars[self.name]['value'] -= 1
+				if self.vars[self.name]['value'] > 0:
+					self.dec()
 					next_state = self.get_state()
-					self.fg.vars[self.name]['value'] += 1
+					self.inc()
 					diff = sum(next_state) - sum_state
 					if diff > 0:
 						terminate = False
 						self.insert_log('not terminated by dec')
-				self.fg.vars[self.name]['sem'].release()
 			if 'inc' in actions:
-				self.fg.vars[self.name]['sem'].acquire()
-				if self.fg.vars[self.name]['value'] < self.fg.vars[self.name]['size'] - 1:
-					self.fg.vars[self.name]['value'] += 1
+				if self.vars[self.name]['value'] < self.vars[self.name]['size'] - 1:
+					self.inc()
 					next_state = self.get_state()
-					self.fg.vars[self.name]['value'] -= 1
+					self.dec()
 					diff = sum(next_state) - sum_state
 					if diff > 0:
 						terminate = False
 						self.insert_log('not terminated by inc')
-				self.fg.vars[self.name]['sem'].release()
 		if terminate:
 			self.insert_log('terminated '+str(actions))
 		return terminate
@@ -181,22 +163,26 @@ class Agent(threading.Thread):
 	def run(self):
 		while not self.finished:
 			while (not self.episode_finished) and (self.clock < self.opt['timeout']):
+				self.clone_vars()
+
 				state = self.get_state()
-				self.insert_log('in clock: '+str(self.clock))
-				self.insert_log('in state: '+str(state))
 				action = self.policy(state)
-				self.insert_log('takin action: '+str(action))
 				self.commit(action)
 				next_state = self.get_state()
-				self.insert_log('going to state: '+str(next_state))
 				action_profile = self.get_actions_profile(action)
-				self.insert_log('with action profile: '+str(action_profile))
 				reward = self.reward(state, action_profile, next_state)
-				self.insert_log('getting reward: '+str(reward))
 				self.update(state, action_profile, next_state, reward)
 
-				self.log.append(self.fg.vars[self.name]['value'])
+				self.insert_log('in clock: '+str(self.clock))
+				self.insert_log('in state: '+str(state))
+				self.insert_log('takin action: '+str(action))
+				self.insert_log('going to state: '+str(next_state))
+				self.insert_log('with action profile: '+str(action_profile))
+				self.insert_log('getting reward: '+str(reward))
+
+				self.log.append(self.vars[self.name]['value'])
 				self.qlog.append(sum(self.qvalues.values()))
+
 				self.clock += 1
 
 	def get_best_responce(self, state):
@@ -232,11 +218,18 @@ class Agent(threading.Thread):
 		return max_q
 
 	def reset(self):
-		self.episode_finished = False
 		self.clock = 1
+		self.clone_vars()
+
+	def play(self):
+		self.episode_finished = False
+
+	def pause(self):
+		self.episode_finished = True
+		#print self.name, 'paused'
 
 	def stop(self):
-		self.episode_finished = False
+		self.episode_finished = True
 		self.finished = True
 
 	def turn_off_learning(self):
@@ -250,4 +243,12 @@ class Agent(threading.Thread):
 	def insert_log(self, m):
 		if self.name == 'g1':
 			self.loog.append(m)
+
+	def inc(self):
+		if self.vars[self.name]['value'] < self.vars[self.name]['value'] -1:
+			self.vars[self.name]['value'] += 1
+
+	def dec(self):
+		if self.vars[self.name]['value'] > 0:
+			self.vars[self.name]['value'] -= 1
 

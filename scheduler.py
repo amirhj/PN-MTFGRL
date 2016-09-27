@@ -32,12 +32,17 @@ class Scheduler:
 						agent = self.agents[a]
 						agent.turn_off_learning()
 				test += 1
+			sys.stdout.flush()
+
+			self.fg.reset()
 
 			for a in self.agents:
 				agent = self.agents[a]
 				agent.reset()
 
-			self.fg.reset()
+			for a in self.agents:
+				agent = self.agents[a]
+				agent.play()
 
 			termination = ''
 			while True:
@@ -48,6 +53,10 @@ class Scheduler:
 				if self.is_timeout():
 					termination = 'Timeout'
 					break
+
+			for a in self.agents:
+				agent = self.agents[a]
+				agent.pause()
 
 			print termination
 
