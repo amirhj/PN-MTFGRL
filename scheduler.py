@@ -10,6 +10,7 @@ class Scheduler:
 		self.log = {}
 		self.time = 0
 		self.clock_log = []
+		self.vars = None
 
 	def init(self):
 		for a in self.agents:
@@ -45,14 +46,21 @@ class Scheduler:
 				agent.ploy()
 
 			termination = ''
+			terminated = False
 			while True:
 				if self.is_terminated():
-					termination = 'Terminated'
+					terminated = True
+					#vars = {v:self.fg.get_virtual_value(v, self.vars) for v in self.fg.vars}
+					#funcs = {f:self.fg.get_virtual_value(f, self.vars) for f in self.fg.funcs}
+					termination = 'Terminated', self.clock_log[-1] #\t' + str(vars) + '\t' + str(funcs)
 					break
 
 				if self.is_timeout():
 					termination = 'Timeout'
 					break
+
+			if not terminated:
+				self.clone_vars()
 
 			for a in self.agents:
 				agent = self.agents[a]
@@ -116,8 +124,10 @@ class Scheduler:
 		indices = util.Counter()
 		variables = self.fg.vars.keys()
 
-		for v in self.fg.vars:
-			result['result'][str(v)] = self.fg.vars[v]['value']
+		#for v in self.fg.vars:
+		#	result['result'][str(v)] = self.fg.get_value(v)
+		for a in self.agents:
+			result['result'][str(a)] = self.agents[a].max_solution
 
 		print 'Writing results...'
 		folder = 'results/'+datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -188,7 +198,7 @@ class Scheduler:
 					else:
 						break
 
-		result['optimal'] = max_vars
+		result['optimal'] = {g:self.fg.vars[g]['domain'][max_vars[g]] for g in max_vars}
 		#"""
 		
 		res = open(folder+'/result.txt', 'w')
@@ -196,11 +206,12 @@ class Scheduler:
 		res.close()
 
 	def is_terminated(self):
+		"""self.clone_vars()
 		terminated = True
 		max_clock = 0
 		for a in self.agents:
 			agent = self.agents[a]
-			if not agent.is_terminated():
+			if not self.is_optimal(a):
 				terminated = False
 				break
 			else:
@@ -210,7 +221,44 @@ class Scheduler:
 		if terminated:
 			self.clock_log.append(max_clock)
 
+		return terminated"""
+		terminated = True
+		max_clock = 0
+		for a in self.agents:
+			agent = self.agents[a]
+			if not agent.terminated:
+				terminated = False
+				break
+			else:
+				if agent.clock > max_clock:
+					max_clock = agent.clock
+		if terminated:
+			self.clock_log.append(max_clock)
 		return terminated
+
+	def is_optimal(self, v):
+		optimal = True
+		sum_funcs2 = None
+		sum_funcs1 = sum([self.fg.get_virtual_value(f, self.vars) for f in self.vars[v]['functions']])
+
+		if self.vars[v]['value'] < (self.vars[v]['size'] - 1):
+			self.vars[v]['value'] += 1
+			sum_funcs2 = sum([self.fg.get_virtual_value(f, self.vars) for f in self.vars[v]['functions']])
+			self.vars[v]['value'] -= 1
+			if sum_funcs2 > sum_funcs1:
+				optimal = False
+
+		if self.vars[v]['value'] > 0:
+			self.vars[v]['value'] -= 1
+			sum_funcs2 = sum([self.fg.get_virtual_value(f, self.vars) for f in self.vars[v]['functions']])
+			self.vars[v]['value'] += 1
+			if sum_funcs2 > sum_funcs1:
+				optimal = False
+
+		return optimal
+
+	def clone_vars(self):
+		self.vars = self.fg.clone_vars()
 
 	def is_timeout(self):
 		timeout = False

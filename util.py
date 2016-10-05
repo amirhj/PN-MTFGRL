@@ -60,6 +60,12 @@ class Queue:
 		"Returns true if the queue is empty"
 		return len(self.list) == 0
 
+	def size(self):
+		return len(self.list)
+
+	def flush(self):
+		del self.list[:]
+
 class PriorityQueue:
 	"""
 	  Implements a priority queue data structure. Each inserted item

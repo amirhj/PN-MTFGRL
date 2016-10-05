@@ -12,6 +12,7 @@ class Agent(threading.Thread):
 		self.opt = opt
 		self.alpha = opt['alpha']
 		self.epsilon = opt['epsilon']
+		self.landa = opt['landa']
 		self.name = name
 		self.agents = agnets
 		self.clock = 1
@@ -20,11 +21,16 @@ class Agent(threading.Thread):
 		self.qlog = []
 		self.episode_finished = True
 		self.finished = False
+		self.terminated = False
+		self.max_value = None
+		self.max_solution = None
+		self.q_queue = util.Queue()
+		self.opt_cout = 0
 
 		self.vars = None
 		self.varlog = None
 		self.varlock = threading.Lock()
-		self.filelock = threading.Lock()
+		self.actions_profile = None
 
 		self.qvalues = util.Counter()
 		self.last_action = 'hold'
@@ -32,7 +38,6 @@ class Agent(threading.Thread):
 
 	def clone_vars(self):
 		self.vars = self.fg.clone_vars()
-		#print '\033[92m agent',self.name, ' cloned\033[0m'
 
 	def get_actions(self):
 		actions = ['dec', 'hold', 'inc']
@@ -55,27 +60,28 @@ class Agent(threading.Thread):
 
 	def policy(self, state):
 		actions = self.get_actions()
-		other_actions = [a for a in actions]
+		other_actions = set([a for a in actions])
 
 		max_q = None
+		max_actions = []
 		for a in actions:
-			action_profile = self.get_actions_profile(a)
-			q = (state,) + action_profile
+			q = (state,a) + self.actions_profile
 			if (max_q is None) or (max_q < self.qvalues[q]):
 				max_q = self.qvalues[q]
-				max_action = a
+				max_actions = [a]
+			elif max_q == self.qvalues[q]:
+				max_actions.append(a)
 
-		del other_actions[other_actions.index(max_action)]
+		other_actions = list(other_actions - set(max_actions))
 
-		if util.flipCoin(self.epsilon):
+		if len(other_actions) > 0 and util.flipCoin(self.epsilon):
 			return random.choice(other_actions)
-		return max_action
+		return random.choice(max_actions)
 
-	def reward(self, state, action_profile, next_state):
-		if self.is_terminated():
+	def reward(self, state, action, next_state):
+		if self.is_optimal():
 			r = 2.0
 		else:
-			action = action_profile[0]
 			sum_state = sum(state)
 			adiff = sum(next_state) - sum_state
 
@@ -90,16 +96,16 @@ class Agent(threading.Thread):
 				states = self.simulate(action)
 				self.dec()
 			else:
-				states = self.simulate(action)
+				states = self.simulate(None)
 
 			r = 0.1
 			for a in states:
 				s = states[a]
 				diff = sum(s) - sum_state
 				if diff > adiff:
-					r = -0.1
-					# print 'best is', a
+					r = -3.0
 					break
+			self.insert_log('rewarding duo '+str(states))
 		return r
 
 	def commit(self, action):
@@ -117,57 +123,69 @@ class Agent(threading.Thread):
 		states = {}
 		for a in actions:
 			if a != action:
-				states[a] = self.get_state()
+				if a == 'inc':
+					self.inc()
+					states[a] = self.get_state()
+					self.dec()
+				elif a == 'dec':
+					self.dec()
+					states[a] = self.get_state()
+					self.inc()
+				else:
+					states[a] = self.get_state()
 		return states
 
-	def update(self, state, action_profile, next_state, reward):
-		qstate = (state, ) + action_profile
+	def updateo(self, state, action, next_state, reward):
+		qstate = (state, action) + self.actions_profile
 		sample = reward + self.opt['gamma'] * self.get_best_responce(next_state)
-		leg = 'qstate from '+str(self.qvalues[qstate])
+		leg = 'qstate ' + str(qstate) + ' from '+str(self.qvalues[qstate])
 		self.qvalues[qstate] = (1 - self.alpha) * self.qvalues[qstate] + self.alpha * sample
 		self.insert_log(leg+' to '+str(self.qvalues[qstate]))
 
-	def is_terminated(self):
+	def is_optimal(self):
 		actions = self.get_actions()
 		state = self.get_state()
 		terminate = True
 		sum_state = sum(state)
 		if sum_state == self.infinity:
 			terminate = False
-			self.insert_log('not terminated by -inf')
+			self.insert_log('not optimal by -inf')
 		else:
-			if 'dec' in actions:
-				if self.vars[self.name]['value'] > 0:
-					self.dec()
-					next_state = self.get_state()
-					self.inc()
-					diff = sum(next_state) - sum_state
-					if diff > 0:
-						terminate = False
-						self.insert_log('not terminated by dec')
-			if 'inc' in actions:
-				if self.vars[self.name]['value'] < self.vars[self.name]['size'] - 1:
-					self.inc()
-					next_state = self.get_state()
-					self.dec()
-					diff = sum(next_state) - sum_state
-					if diff > 0:
-						terminate = False
-						self.insert_log('not terminated by inc')
+			if self.vars[self.name]['value'] > 0:
+				self.dec()
+				next_state = self.get_state()
+				self.inc()
+				if sum(next_state) > sum_state:
+					terminate = False
+					self.insert_log('not optimal by dec')
+			if self.vars[self.name]['value'] < self.vars[self.name]['size'] - 1:
+				self.inc()
+				next_state = self.get_state()
+				self.dec()
+				if sum(next_state) > sum_state:
+					terminate = False
+					self.insert_log('not optimal by inc')
+
 		if terminate:
-			self.insert_log('terminated '+str(actions))
+			self.insert_log('optimal '+str(actions))
+
 		return terminate
 
-	def get_actions_profile(self, action):
-		actions = [action]
+	def get_actions_profile(self):
+		actions = []
 		for a in self.fg.get_neighbour_variables(self.name):
 			actions.append(self.agents[a].last_action)
-		return tuple(actions)
+		self.actions_profile = tuple(actions)
 
-	def run(self):
+	def run(self):		
+
+		self.varlog = open('log/%s.txt' % self.name, 'w')
+		self.varlog.close()
+
 		while not self.finished:
 			while (not self.episode_finished) and (self.clock < self.opt['timeout']):
 				self.clone_vars()
+				self.get_actions_profile()
 
 				state = self.get_state()
 				action = self.policy(state)
@@ -175,16 +193,20 @@ class Agent(threading.Thread):
 				self.commit(action)
 				v2 = self.vars[self.name]['value']
 				next_state = self.get_state()
-				action_profile = self.get_actions_profile(action)
-				reward = self.reward(state, action_profile, next_state)
-				self.update(state, action_profile, next_state, reward)
+				self.log_state(next_state)
 
-				self.insert_log('in clock: '+str(self.clock))
+				self.insert_log('\nin clock: '+str(self.clock))
 				self.insert_log('in state: '+str(state)+' by '+str(v1))
 				self.insert_log('takin action: '+str(action))
-				self.insert_log('going to state: '+str(next_state)+' by '+str(v1))
-				self.insert_log('with action profile: '+str(action_profile))
+				self.insert_log('going to state: '+str(next_state)+' by '+str(v2))
+				self.insert_log('with action profile: '+str(self.actions_profile))
+
+
+				reward = self.reward(state, action, next_state)
+
 				self.insert_log('getting reward: '+str(reward))
+
+				self.updateo(state, action, next_state, reward)
 
 				self.log.append(self.vars[self.name]['value'])
 				self.qlog.append(sum(self.qvalues.values()))
@@ -192,9 +214,9 @@ class Agent(threading.Thread):
 				self.clock += 1
 
 	def get_best_responce(self, state):
-		agents = []
+		agents = [self.name]
 		action_indices = util.Counter()
-		agents_actions = {}
+		agents_actions = {self.name: ['dec','hold','inc']}
 		for a in self.fg.get_neighbour_variables(self.name):
 			agents_actions[a] = self.agents[a].get_actions()
 			agents.append(a)
@@ -216,28 +238,32 @@ class Agent(threading.Thread):
 						break
 
 		max_q = None
+		q = None
 		for c in cartesian:
 			qstate = (state, ) + c
 			if max_q is None or self.qvalues[qstate] > max_q:
 				max_q = self.qvalues[qstate]
-
+				q = qstate
+		self.insert_log(str(q) + ' = '+str(max_q) + ' is best responce')
 		return max_q
 
 	def reset(self):
 		self.clock = 1
+		self.terminated = False
+		self.q_queue.flush()
+		self.opt_cout = 0
 		self.clone_vars()
-		
-		#self.filelock.acquire()
-		#if self.varlog is not None:
-		#	self.varlog.close()
-		#self.varlog = open('log/%s.txt' % self.name, 'w')
-		#self.filelock.release()
 
 	def ploy(self):
 		self.episode_finished = False
 
 	def pauose(self):
 		self.episode_finished = True
+		
+		if self.max_solution is not None:
+			self.varlog = open('log/%s.txt' % self.name, 'a')
+			self.varlog.write('%d\n' % (self.max_solution))
+			self.varlog.close()
 		#print self.name, 'paused'
 
 	def stoop(self):
@@ -257,24 +283,70 @@ class Agent(threading.Thread):
 			self.loog.append(m)
 
 	def inc(self):
-		self.varlock.acquire()
 		v = self.vars[self.name]['value']
 		if self.vars[self.name]['value'] < self.vars[self.name]['size'] -1:
 			self.vars[self.name]['value'] += 1
 			if self.vars[self.name]['value'] == self.vars[self.name]['size']:
 				self.vars[self.name]['value'] = self.vars[self.name]['size'] -1
-			#with self.filelock:
-			#	self.varlog.write('inc %s from %d to %d\n' % (self.name, v, self.vars[self.name]['value']))
-		self.varlock.release()
 
 	def dec(self):
-		self.varlock.acquire()
 		v = self.vars[self.name]['value']
 		if self.vars[self.name]['value'] > 0:
 			self.vars[self.name]['value'] -= 1
 			if self.vars[self.name]['value'] == -1:
 				self.vars[self.name]['value'] = 0
-			#with self.filelock:
-			#	self.varlog.write('dec %s from %d to %d\n' % (self.name, v, self.vars[self.name]['value']))
-		self.varlock.release()
 
+	def log_state(self, state):
+		"""sum_state = sum(state)
+		if self.q_queue.size() == self.landa:
+			self.q_queue.pop()
+		self.q_queue.push(sum_state)
+
+		if self.q_queue.size() == self.landa:
+			if len(set(self.q_queue.list)) == 1:
+				self.terminated = True
+				self.episode_finished = True
+		else:
+			self.terminated = False
+
+		if self.max_solution is not None:
+			if self.max_value <= sum_state:
+				#print self.max_value, 'is less than', sum_state
+				self.max_value = sum_state
+				self.max_solution = self.fg.get_virtual_value(self.name, self.vars)
+		else:
+			self.max_value = sum_state
+			self.max_solution = self.fg.get_virtual_value(self.name, self.vars)"""
+		optimal = self.is_optimal()
+		if optimal:
+			for a in self.fg.get_neighbour_variables(self.name):
+				n_opt = True
+				ov = sum([self.fg.get_virtual_value(f, self.vars) for f in self.vars[a]['functions']])
+				if self.vars[a]['value'] < (self.vars[a]['size'] - 1):
+					self.vars[a]['value'] += 1
+					nv = sum([self.fg.get_virtual_value(f, self.vars) for f in self.vars[a]['functions']])
+					self.vars[a]['value'] -= 1
+					if ov > nv:
+						n_opt = False
+				if n_opt:
+					if self.vars[a]['value'] > 0:
+						self.vars[a]['value'] -= 1
+						nv = sum([self.fg.get_virtual_value(f, self.vars) for f in self.vars[a]['functions']])
+						self.vars[a]['value'] += 1
+						if ov > nv:
+							n_opt = False
+
+				optimal = optimal and n_opt
+
+				if not n_opt:
+					break
+
+			if optimal:
+				self.opt_cout += 1
+				if self.opt_cout == self.landa:
+					self.max_solution = self.fg.get_virtual_value(self.name, self.vars)
+					self.terminated = True
+					self.episode_finished = True
+			else:
+				self.opt_cout = 0
+				self.terminated = False

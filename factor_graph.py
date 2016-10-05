@@ -157,6 +157,7 @@ class FactorGraph:
 				lines += self.get_value(c)
 
 			load_sum = sum_loads + sum_generators + sum_resources + lines
+
 			if load_sum == 0:
 				value = sum([self.get_value(g) * self.generators[g].CO for g in self.nodes[name].generators]) * -1
 			else:
@@ -217,19 +218,12 @@ class FactorGraph:
 		return list(nvars)
 
 	def reset(self):
-		res = {}
 		if self.opt['random_init']:
 			for v in self.vars:
 				self.vars[v]['value'] = random.choice(range(self.vars[v]['size']))
-				res[v] = (self.vars[v]['value'], self.vars[v]['size'])
 		else:
 			for v in self.vars:
 				self.vars[v]['value'] = 0
-		#if self.log is not None:
-		#	self.log.close()
-		#self.log = open('fg-log.txt', 'w')
-
-		#print res
 	
 	def inc(self, name):
 		#v = self.vars[name]['value']

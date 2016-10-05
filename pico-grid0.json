@@ -1,0 +1,70 @@
+{
+	"generators": {
+		"g1": {
+			"CO": 0.1,
+			"maxValue": 10
+		}
+	},
+	"loads": {
+		"l0": -5
+	},
+	"nodes": {
+		"v0": {
+			"children": [
+			],
+			"generators": [
+				"g1"
+			],
+			"loads": [
+				"l0"
+			],
+			"resources": [
+				"i0"
+			]
+		}
+	},
+	"powerLines": {
+	},
+	"resources": {
+		"i0": {
+			"transitions": [
+				[],
+				[]
+			],
+			"values": [
+				[],
+				[]
+			]
+		},
+		"i1": {
+			"transitions": [
+				[],
+				[]
+			],
+			"values": [
+				[],
+				[]
+			]
+		},
+		"i2": {
+			"transitions": [
+				[],
+				[]
+			],
+			"values": [
+				[],
+				[]
+			]
+		},
+		"i3": {
+			"transitions": [
+				[],
+				[]
+			],
+			"values": [
+				[],
+				[]
+			]
+		}
+	}
+}
